@@ -7,17 +7,15 @@
 
 SevSeg Display;
 
-const char* ssid = "pohhoon65"; // 你的SSID
-const char* password = "20camry825505"; // 你的密码
-const int ledPin = 4; // GPIO 4 给2粒点的LED
+const char* ssid = "pohhoon65"; // Your SSID
+const char* password = "20camry825505"; // Your password
+const int ledPin = 4; // GPIO 4 for 2-LEDs
 unsigned long previousMillis = 0;
-const long interval = 500; // 半秒闪一次
-unsigned long lastSyncMillis = 0; // 添加全局声明
-const long syncInterval = 3600000; // 每一个小时同步一次
+const long interval = 500; // Blink every half second
 
 // Define NTP variables
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 8 * 3600); // 设置国际时间，这边是 GMT +8
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 8 * 3600); // Set to international time (GMT +8)
 
 void setup() {
   // Connect to Wi-Fi
@@ -33,12 +31,12 @@ void setup() {
 
   // Set up the pins and display
   byte numDigits = 4;
-  byte digitPins[] = {12, 13, 14, 15}; // display 的pin （数位）
-  byte segmentPins[] = {18, 19, 21, 22, 23, 25, 26}; // display 的段pin
+  byte digitPins[] = {12, 13, 14, 15}; // Display digit pins
+  byte segmentPins[] = {18, 19, 21, 22, 23, 25, 26}; // Display segment pins
   bool resistorsOnSegments = false;
   bool updateWithDelays = false;
   byte hardwareConfig = COMMON_CATHODE;
-  bool leadingZeros = false; // 显示 “0” 如果是空白
+  bool leadingZeros = false; // Display "0" if blank
   bool disableDecPoint = true;
   Display.begin(hardwareConfig, numDigits, digitPins, segmentPins, resistorsOnSegments, updateWithDelays, leadingZeros, disableDecPoint);
   Display.setBrightness(50);
