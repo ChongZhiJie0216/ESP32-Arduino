@@ -1,0 +1,115 @@
+#include <WiFi.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+#include "SevSeg.h"
+#include <Time.h>
+#include <TimeLib.h>
+#include <ESPAsyncWebSrv.h> // Include the ESPAsyncWebServer library
+
+SevSeg Display;
+
+const char* ssid = "pohhoon65"; // Your SSID
+const char* password = "20camry825505"; // Your password
+const int ledPin = 4; // GPIO 4 for 2-LEDs
+unsigned long previousMillis = 0;
+const long interval = 500; // Blink every half second
+
+// Define NTP variables
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 8 * 3600); // Set to international time (GMT +8)
+AsyncWebServer server(80);
+
+void setup() {
+  Serial.begin(115200);
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  WiFi.setHostname("ESP32-Clock");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.print("Connected to WiFi. IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Hostname: ");
+  Serial.println(WiFi.getHostname());
+  // Initialize NTP client
+  timeClient.begin();
+
+  // Set up the pins and display
+  byte numDigits = 4;
+  byte digitPins[] = {12, 13, 14, 15}; // Display digit pins
+  byte segmentPins[] = {18, 19, 21, 22, 23, 25, 26}; // Display segment pins
+  bool resistorsOnSegments = false;
+  bool updateWithDelays = false;
+  byte hardwareConfig = COMMON_CATHODE;
+  bool leadingZeros = false; // Display "0" if blank
+  bool disableDecPoint = true;
+  Display.begin(hardwareConfig, numDigits, digitPins, segmentPins, resistorsOnSegments, updateWithDelays, leadingZeros, disableDecPoint);
+  Display.setBrightness(100);
+
+ // Serve HTML page to display the time
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    int hours = timeClient.getHours();
+    int minutes = timeClient.getMinutes();
+    String ampm = (hours >= 12) ? "PM" : "AM";
+
+    if (hours > 12) {
+      hours -= 12;
+    } else if (hours == 0) {
+      hours = 12;
+    }
+
+    // Format hours and minutes with leading zeros
+    String formattedTime = String(hours < 10 ? "0" : "") + String(hours) + ":" + String(minutes < 10 ? "0" : "") + String(minutes);
+
+    String html = "<html><head><title>ESP32 Clock WEB</title></head><center><body>";
+    html += "<h1>ESP32 Clock</h1>";
+    html += "<p>Current Time: " + formattedTime + " " + ampm + "</p>";
+    html += "</body></center></html>";
+    request->send(200, "text/html", html);
+  });
+  // Set up the LED pin
+  pinMode(ledPin, OUTPUT);
+  server.begin();
+}
+
+void loop() {
+  // Update NTP time every hour
+  unsigned long currentMillis = millis();
+  static unsigned long lastSyncMillis = 0;
+  const long syncInterval = 3600000; // 1小时
+
+  if (currentMillis - lastSyncMillis >= syncInterval) {
+    lastSyncMillis = currentMillis;
+    
+    // Force time synchronization with NTP server
+    timeClient.forceUpdate();
+  }
+
+  // Get the current time from the NTP server
+  timeClient.update();
+  int hours = timeClient.getHours();
+  int minutes = timeClient.getMinutes();
+
+  // Convert to 12-hour format
+  if (hours > 12) {
+    hours -= 12;
+  }
+  if (hours == 0) {
+    hours = 12;
+  }
+
+  // Display the time in 12-hour format
+  int timeToDisplay = hours * 100 + minutes;
+
+  Display.setNumber(timeToDisplay);
+  Display.refreshDisplay();
+
+  // Non-blocking LED blinking
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    // Toggle the LED state
+    digitalWrite(ledPin, !digitalRead(ledPin));
+  }
+}
